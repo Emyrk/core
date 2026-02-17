@@ -423,15 +423,15 @@ func TestGetName(t *testing.T) {
 		val interface{}
 	}{
 		{"int", int(1)},
-		{"github.com/niubaoshu/gotiny.Encoder", gotiny.Encoder{}},
+		{"github.com/cybriq/gotiny.Encoder", gotiny.Encoder{}},
 		{"*int", (*int)(nil)},
 		{"**int", (**int)(nil)},
 		{"[]int", []int{}},
 		{"[]time.Time", []time.Time{}},
-		{"[]github.com/niubaoshu/gotiny.GoTinySerializer", []gotiny.GoTinySerializer{}},
+		{"[]github.com/cybriq/gotiny.GoTinySerializer", []gotiny.GoTinySerializer{}},
 		{"*interface {}", (*interface{})(nil)},
 		{"map[int]string", map[int]string{}},
-		{"struct { a struct { int; b int; dec []github.com/niubaoshu/gotiny.Decoder; abb interface {}; c io.ReadWriteCloser } }",
+		{"struct { a struct { int; b int; dec []github.com/cybriq/gotiny.Decoder; abb interface {}; c io.ReadWriteCloser } }",
 			struct {
 				a struct {
 					int
