@@ -96,6 +96,7 @@ func (p *Pool) OpenFile(name string) (*File, error) {
 		return nil, fmt.Errorf("File not found")
 	}
 
+	fmt.Printf("[MPQ Pool] OpenFile %q -> %s\n", name, ae.name) // <- add here
 	m := new(MPQ)
 	m.Path = ae.name
 	var err error
