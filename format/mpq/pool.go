@@ -65,30 +65,30 @@ func OpenPool(names []string) (*Pool, error) {
 	p.fmap = make(map[string]*archiveEntry)
 
 	// Add patch archives first.
-	var patch, todo []string
+	//var patch, todo []string
+	//for _, v := range names {
+	//	if strings.Contains(getArchiveName(v), "patch") {
+	//		patch = append(patch, v)
+	//	} else {
+	//		todo = append(todo, v)
+	//	}
+	//}
+
+	sortPatchArchives(names)
 	for _, v := range names {
-		if strings.Contains(getArchiveName(v), "patch") {
-			patch = append(patch, v)
-		} else {
-			todo = append(todo, v)
-		}
-	}
-
-	sortPatchArchives(patch)
-	for _, v := range patch {
 		err := p.addArchive(v)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	// Add other archives later.
-	for _, v := range todo {
-		err := p.addArchive(v)
-		if err != nil {
-			return nil, err
-		}
-	}
+	//// Add other archives later.
+	//for _, v := range todo {
+	//	err := p.addArchive(v)
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//}
 
 	return p, nil
 }
