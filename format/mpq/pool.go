@@ -3,7 +3,9 @@ package mpq
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -43,10 +45,11 @@ func (p *Pool) addArchive(name string) error {
 	lf := m.ListFiles()
 
 	for _, fv := range lf {
-		mappedFile := p.fmap[fv]
-		if mappedFile == nil {
-			p.fmap[fv] = ae // map filepath string to MPQ data pointer
-		}
+		p.fmap[fv] = ae
+		//mappedFile := p.fmap[fv]
+		//if mappedFile == nil {
+		//	p.fmap[fv] = ae // map filepath string to MPQ data pointer
+		//}
 	}
 
 	return nil
@@ -71,7 +74,7 @@ func OpenPool(names []string) (*Pool, error) {
 		}
 	}
 
-	sort.Strings(patch)
+	sortPatchArchives(patch)
 	for _, v := range patch {
 		err := p.addArchive(v)
 		if err != nil {
@@ -127,4 +130,61 @@ func (p *Pool) ListFiles() []string {
 	sort.Strings(str)
 
 	return str
+}
+
+func sortPatchArchives(names []string) {
+	sort.SliceStable(names, func(i, j int) bool {
+		ai := archiveOrderKey(getArchiveName(names[i]))
+		aj := archiveOrderKey(getArchiveName(names[j]))
+		// category first: base archives, then patch stream
+		if ai.cat != aj.cat {
+			return ai.cat < aj.cat
+		}
+		// patch.MPQ first in patch stream
+		if ai.cat == 1 && ai.kind != aj.kind {
+			return ai.kind < aj.kind
+		}
+		// numeric patches ascending: patch-2, patch-3, ...
+		if ai.cat == 1 && ai.kind == 1 && ai.num != aj.num {
+			return ai.num < aj.num
+		}
+		// letter patches ascending: patch-A ... patch-Z
+		if ai.cat == 1 && ai.kind == 2 && ai.letter != aj.letter {
+			return ai.letter < aj.letter
+		}
+		// deterministic fallback for same class
+		return ai.norm < aj.norm
+	})
+}
+
+type orderKey struct {
+	cat    int // 0=base/non-patch, 1=patch-family
+	kind   int // for patch-family: 0=patch, 1=patch-N, 2=patch-X, 3=other patch*
+	num    int
+	letter rune
+	norm   string
+}
+
+func archiveOrderKey(name string) orderKey {
+	norm := strings.ToLower(name)
+	stem := strings.TrimSuffix(norm, filepath.Ext(norm))
+	k := orderKey{cat: 0, kind: 3, norm: norm}
+	if stem == "patch" {
+		k.cat, k.kind = 1, 0
+		return k
+	}
+	if strings.HasPrefix(stem, "patch-") {
+		k.cat = 1
+		s := strings.TrimPrefix(stem, "patch-")
+		if v, err := strconv.Atoi(s); err == nil {
+			k.kind, k.num = 1, v
+			return k
+		}
+		if len(s) == 1 && s[0] >= 'a' && s[0] <= 'z' {
+			k.kind, k.letter = 2, rune(s[0])
+			return k
+		}
+		// unknown patch-* still in patch family, sorted by norm fallback
+	}
+	return k
 }
