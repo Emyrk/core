@@ -59,12 +59,12 @@ func (d *DB) Open(name string, reader io.Reader) (*Table, error) {
 	if err != nil {
 		return nil, err
 	}
-	if int(table.Header.RecordSize) != recordSz {
-		return nil, fmt.Errorf("dbc: failed to open %s, disagreement on record size between file (%d) and definition (%d)", table.Name, table.Header.RecordSize, recordSz)
+	if int(table.Header.RecordSize) < recordSz {
+		return nil, fmt.Errorf("dbc: failed to open %s, file record size (%d) is smaller than definition (%d)", table.Name, table.Header.RecordSize, recordSz)
 	}
 
-	if int(table.Header.FieldCount) != numCols {
-		return nil, fmt.Errorf("dbc: failed to open %s, disagreement on number of fields (array-inclusive) between file (%d) and definition (%d)", table.Name, table.Header.FieldCount, numCols)
+	if int(table.Header.FieldCount) < numCols {
+		return nil, fmt.Errorf("dbc: failed to open %s, file field count (%d) is smaller than definition (%d)", table.Name, table.Header.FieldCount, numCols)
 	}
 
 	table.Records = make([]byte, table.Header.RecordSize*table.Header.RecordCount)
