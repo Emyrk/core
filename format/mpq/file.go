@@ -232,7 +232,8 @@ func (m *MPQ) ListFiles() []string {
 
 	buf, err := f.ReadBlock()
 	if err != nil {
-		panic(err)
+		fmt.Println("no listfile", err)
+		return nil
 	}
 
 	dat := string(buf)
