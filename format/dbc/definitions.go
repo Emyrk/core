@@ -12,7 +12,7 @@ func LocStringSize(v vsn.Build) (int, error) {
 		// const char *xx_lang[8];
 		// int         xx_flag;
 		return 9, nil
-	case vsn.Range(6692, 12340).Contains(v):
+	case vsn.Range(6692, 12999).Contains(v):
 		// const char *xx_lang[16];
 		// int         xx_flag;
 		return 17, nil
