@@ -48,7 +48,7 @@ func DetectGame(folder string) (vsn.Build, error) {
 
 	head := path[len(path)-1]
 
-	exes := []string{"WoWClient.exe", "WoW.exe", "Wow.exe", "WoW-64.exe", "Wow-64.exe"}
+	exes := []string{"WoWClient.exe", "WoW.exe", "Wow.exe", "WoW-64.exe", "Wow-64.exe", "Ascension.exe"}
 
 	for _, e := range exes {
 		if e == head {
