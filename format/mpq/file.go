@@ -222,7 +222,14 @@ func (m *MPQ) OpenFile(name string) (*File, error) {
 	return f, nil
 }
 
-func (m *MPQ) ListFiles() []string {
+func (m *MPQ) ListFiles() (result []string) {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Printf("no listfile file not found: (listfile) (recovered: %v)\n", r)
+			result = nil
+		}
+	}()
+
 	f, err := m.OpenFile("(listfile)")
 	if err != nil {
 		fmt.Println("no listfile", err)
