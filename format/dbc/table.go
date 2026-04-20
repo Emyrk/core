@@ -287,7 +287,10 @@ func (t *Table) stringRef(i int) (strSect string, high int, err error) {
 
 func (t *Table) StringRef(i int) (string, error) {
 	if i >= len(t.StringBlock) {
-		return "", fmt.Errorf("dbc: out of bounds stringref: StringBlock<%d>[%d] in table %s", len(t.StringBlock), i, t.Name)
+		// Tolerate out-of-bounds references (e.g. from private-server DBC files
+		// with extra columns that shift field alignment). Return empty string
+		// instead of an error so callers can continue parsing remaining records.
+		return "", nil
 	}
 
 	str, _, err := t.stringRef(i)
