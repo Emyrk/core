@@ -74,7 +74,7 @@ func OpenPool(names []string) (*Pool, error) {
 	//	}
 	//}
 
-	sortPatchArchives(names)
+	SortPatchArchives(names)
 	for _, v := range names {
 		err := p.addArchive(v)
 		if err != nil {
@@ -132,25 +132,43 @@ func (p *Pool) ListFiles() []string {
 	return str
 }
 
-func sortPatchArchives(names []string) {
+// SortPatchArchives sorts MPQ archive paths so that archives are loaded in
+// ascending priority order (lowest priority first). Because the Pool uses
+// last-write-wins for its file map, the last archive loaded takes precedence.
+//
+// WoW 3.3.5a load order (ascending priority):
+//
+//  1. Data/ base archives  (common, expansion, lichking, …)
+//  2. Data/{locale}/ base archives  (locale-enUS, base-enUS, …)
+//  3. Data/ patch.MPQ
+//  4. Data/ numbered patches  (patch-2, patch-3)
+//  5. Data/{locale}/ locale patches  (patch-enUS, patch-enUS-2, patch-enUS-3)
+//  6. Data/ letter patches  (Patch-F, Patch-G, …, Patch-X)  ← highest
+//
+// Within the same kind, archives in a locale subdirectory (deeper path) load
+// after archives in Data/ so they take precedence.
+func SortPatchArchives(names []string) {
 	sort.SliceStable(names, func(i, j int) bool {
-		ai := archiveOrderKey(getArchiveName(names[i]))
-		aj := archiveOrderKey(getArchiveName(names[j]))
+		ai := archiveOrderKey(names[i])
+		aj := archiveOrderKey(names[j])
 		// category first: base archives, then patch stream
 		if ai.cat != aj.cat {
 			return ai.cat < aj.cat
 		}
-		// patch.MPQ first in patch stream
-		if ai.cat == 1 && ai.kind != aj.kind {
+		// within same category, sort by kind
+		if ai.kind != aj.kind {
 			return ai.kind < aj.kind
 		}
-		// numeric patches ascending: patch-2, patch-3, ...
-		if ai.cat == 1 && ai.kind == 1 && ai.num != aj.num {
+		// within same kind, sub-sort
+		if (ai.kind == 1 || ai.kind == 2) && ai.num != aj.num {
 			return ai.num < aj.num
 		}
-		// letter patches ascending: patch-A ... patch-Z
-		if ai.cat == 1 && ai.kind == 2 && ai.letter != aj.letter {
+		if ai.kind == 3 && ai.letter != aj.letter {
 			return ai.letter < aj.letter
+		}
+		// locale subdirectory loads after Data/ (higher priority)
+		if ai.depth != aj.depth {
+			return ai.depth < aj.depth
 		}
 		// deterministic fallback for same class
 		return ai.norm < aj.norm
@@ -158,17 +176,21 @@ func sortPatchArchives(names []string) {
 }
 
 type orderKey struct {
-	cat    int // 0=base/non-patch, 1=patch-family
-	kind   int // for patch-family: 0=patch, 1=patch-N, 2=patch-X, 3=other patch*
-	num    int
-	letter rune
-	norm   string
+	cat    int    // 0=base/non-patch, 1=patch-family
+	kind   int    // 0=patch, 1=patch-N, 2=patch-locale (multi-char), 3=patch-X (single letter)
+	num    int    // for kind==1: numeric suffix
+	letter rune   // for kind==3: letter suffix
+	depth  int    // path component count (deeper = locale subdir = higher priority)
+	norm   string // lowercase filename for deterministic fallback
 }
 
-func archiveOrderKey(name string) orderKey {
+func archiveOrderKey(fullPath string) orderKey {
+	name := getArchiveName(fullPath)
 	norm := strings.ToLower(name)
 	stem := strings.TrimSuffix(norm, filepath.Ext(norm))
-	k := orderKey{cat: 0, kind: 3, norm: norm}
+	depth := strings.Count(fullPath, "/") + strings.Count(fullPath, "\\")
+	k := orderKey{cat: 0, kind: 0, depth: depth, norm: norm}
+
 	if stem == "patch" {
 		k.cat, k.kind = 1, 0
 		return k
@@ -177,14 +199,25 @@ func archiveOrderKey(name string) orderKey {
 		k.cat = 1
 		s := strings.TrimPrefix(stem, "patch-")
 		if v, err := strconv.Atoi(s); err == nil {
+			// patch-2, patch-3
 			k.kind, k.num = 1, v
 			return k
 		}
 		if len(s) == 1 && s[0] >= 'a' && s[0] <= 'z' {
-			k.kind, k.letter = 2, rune(s[0])
+			// Single-letter custom server patches (Patch-F, Patch-Q, …).
+			// These have the HIGHEST priority.
+			k.kind, k.letter = 3, rune(s[0])
 			return k
 		}
-		// unknown patch-* still in patch family, sorted by norm fallback
+		// Multi-char patch variants: locale patches (patch-enUS, patch-enUS-2)
+		// and other custom names. These sit between numbered and letter patches.
+		// Extract a trailing number for sub-sorting (e.g. patch-enUS-2 → num=2).
+		k.kind = 2
+		if idx := strings.LastIndex(s, "-"); idx >= 0 {
+			if v, err := strconv.Atoi(s[idx+1:]); err == nil {
+				k.num = v
+			}
+		}
 	}
 	return k
 }
